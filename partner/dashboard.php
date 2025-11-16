@@ -1,6 +1,6 @@
 <?php
-require_once 'config/database.php';
-require_once 'includes/session.php';
+require_once '../config/database.php';
+require_once '../includes/session.php';
 
 checkLogin();
 $operator_id = getCurrentOperator();
@@ -360,20 +360,20 @@ $unread_notifications = (int)$stmt->fetch(PDO::FETCH_ASSOC)['unread_count'];
       <span><?= htmlspecialchars($_SESSION['company_name']) ?></span>
     </div>
     <nav class="nav flex-column mt-3">
-      <a class="nav-link active" href="dashboard.php"><i class="fas fa-tachometer-alt"></i><span>Tổng quan</span></a>
-      <a class="nav-link" href="trips.php"><i class="fas fa-route"></i><span>Chuyến xe</span></a>
-      <a class="nav-link" href="tickets.php"><i class="fas fa-ticket-alt"></i><span>Đặt vé</span></a>
-      <a class="nav-link" href="operations.php"><i class="fas fa-cogs"></i><span>Vận hành</span></a>
-      <a class="nav-link" href="reports.php"><i class="fas fa-chart-bar"></i><span>Báo cáo</span></a>
-      <a class="nav-link" href="feedback.php"><i class="fas fa-star"></i><span>Phản hồi</span></a>
-      <a class="nav-link" href="notifications.php">
+      <a class="nav-link active" href="../partner/dashboard.php"><i class="fas fa-tachometer-alt"></i><span>Tổng quan</span></a>
+      <a class="nav-link" href="../partner/trips.php"><i class="fas fa-route"></i><span>Chuyến xe</span></a>
+      <a class="nav-link" href="../partner/tickets.php"><i class="fas fa-ticket-alt"></i><span>Đặt vé</span></a>
+      <a class="nav-link" href="../partner/operations.php"><i class="fas fa-cogs"></i><span>Vận hành</span></a>
+      <a class="nav-link" href="../partner/reports.php"><i class="fas fa-chart-bar"></i><span>Báo cáo</span></a>
+      <a class="nav-link" href="../partner/feedback.php"><i class="fas fa-star"></i><span>Phản hồi</span></a>
+      <a class="nav-link" href="../partner/notifications.php">
         <i class="fas fa-bell"></i><span>Thông báo</span>
         <?php if ($unread_notifications > 0): ?>
           <span class="badge-notif"><?= $unread_notifications ?></span>
         <?php endif; ?>
       </a>
-      <a class="nav-link" href="settings.php"><i class="fas fa-cog"></i><span>Cài đặt</span></a>
-      <a class="nav-link" href="logout.php"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></a>
+      <a class="nav-link" href="../partner/settings.php"><i class="fas fa-cog"></i><span>Cài đặt</span></a>
+      <a class="nav-link" href="../auth/logout.php"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></a>
     </nav>
   </div>
 
@@ -393,7 +393,7 @@ $unread_notifications = (int)$stmt->fetch(PDO::FETCH_ASSOC)['unread_count'];
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="settings.php"><i class="fas fa-cog me-2"></i>Cài đặt</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a></li>
+            <li><a class="dropdown-item text-danger" href="../auth/logout.php"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a></li>
           </ul>
         </div>
       </div>

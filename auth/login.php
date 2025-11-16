@@ -1,6 +1,6 @@
 <?php
-require_once 'config/database.php';
-require_once 'includes/session.php';
+require_once '../config/database.php';
+require_once '../includes/session.php';
 
 $error = '';
 
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['operator_id'] = $partner['partner_id'];
                 $_SESSION['company_name']= $partner['name'];
                 $_SESSION['username']    = !empty($partner['email']) ? $partner['email'] : $partner['phone'];
-                header('Location: dashboard.php');
+                header('Location: ../partner/dashboard.php');
                 exit();
             }
         }
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['admin_id']   = $admin['user_id'];
                 $_SESSION['company_name']= 'Admin Panel';
                 $_SESSION['username']   = $admin['email'];
-                header('Location: admin_dashboard.php');
+                header('Location: ../admin/admin_dashboard.php');
                 exit();
             }
         }

@@ -1,6 +1,6 @@
 <?php
-require_once 'config/database.php';
-require_once 'includes/session.php';
+require_once '../config/database.php';
+require_once '../includes/session.php';
 
 checkLogin();
 
@@ -243,15 +243,15 @@ try {
             <span><?= htmlspecialchars($_SESSION['company_name']) ?></span>
         </div>
         <nav class="nav flex-column mt-3">
-            <a class="nav-link" href="dashboard.php"><i class="fas fa-tachometer-alt"></i><span>Tổng quan</span></a>
-            <a class="nav-link" href="trips.php"><i class="fas fa-route"></i><span>Chuyến xe</span></a>
-            <a class="nav-link active" href="tickets.php"><i class="fas fa-ticket-alt"></i><span>Đặt vé</span></a>
-            <a class="nav-link" href="operations.php"><i class="fas fa-cogs"></i><span>Vận hành</span></a>
-            <a class="nav-link" href="reports.php"><i class="fas fa-chart-bar"></i><span>Báo cáo</span></a>
-            <a class="nav-link" href="feedback.php"><i class="fas fa-star"></i><span>Phản hồi</span></a>
-            <a class="nav-link" href="notifications.php"><i class="fas fa-bell"></i><span>Thông báo</span></a>
-            <a class="nav-link" href="settings.php"><i class="fas fa-cog"></i><span>Cài đặt</span></a>
-            <a class="nav-link" href="logout.php"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></a>
+            <a class="nav-link" href="../partner/dashboard.php"><i class="fas fa-tachometer-alt"></i><span>Tổng quan</span></a>
+            <a class="nav-link" href="../partner/trips.php"><i class="fas fa-route"></i><span>Chuyến xe</span></a>
+            <a class="nav-link active" href="../partner/tickets.php"><i class="fas fa-ticket-alt"></i><span>Đặt vé</span></a>
+            <a class="nav-link" href="../partner/operations.php"><i class="fas fa-cogs"></i><span>Vận hành</span></a>
+            <a class="nav-link" href="../partner/reports.php"><i class="fas fa-chart-bar"></i><span>Báo cáo</span></a>
+            <a class="nav-link" href="../partner/feedback.php"><i class="fas fa-star"></i><span>Phản hồi</span></a>
+            <a class="nav-link" href="../partner/notifications.php"><i class="fas fa-bell"></i><span>Thông báo</span></a>
+            <a class="nav-link" href="../partner/settings.php"><i class="fas fa-cog"></i><span>Cài đặt</span></a>
+            <a class="nav-link" href="../auth/logout.php"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></a>
         </nav>
     </div>
 

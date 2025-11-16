@@ -1,102 +1,86 @@
 <?php
-require_once 'config/database.php';
-require_once 'includes/session.php';
+require_once '../config/database.php';
+require_once '../includes/session.php';
 
-checkAdminLogin();
+checkLogin();
+$partner_id = getCurrentOperator();
 
 $database = new Database();
 $db = $database->getConnection();
 
 $message = '';
 $message_type = '';
+$company_name = $_SESSION['company_name'] ?? 'Nhà xe';
 
-// Partners for selector
-$partners = [];
-try { 
-    $partners = $db->query("SELECT partner_id, name FROM partners ORDER BY name")->fetchAll(PDO::FETCH_ASSOC); 
-} catch (Exception $e) { /* ignore */ }
-
-$partner_id = isset($_GET['partner_id']) && $_GET['partner_id'] !== '' ? (int)$_GET['partner_id'] : (count($partners) ? (int)$partners[0]['partner_id'] : null);
-
-// === XỬ LÝ POST: ADD, EDIT, DELETE ===
+// === XỬ LÝ POST (THÊM / SỬA) ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     try {
         switch ($_POST['action']) {
-            // === THÊM XE ===
             case 'add_vehicle':
-                $pid = (int)($_POST['partner_id'] ?? 0);
-                $license_plate = trim($_POST['license_plate']);
-                $type = trim($_POST['type']);
-                $total_seats = (int)$_POST['total_seats'];
-                if (!$pid || !$license_plate || !$type || !$total_seats) throw new Exception('Vui lòng điền đầy đủ thông tin xe.');
-                $stmt = $db->prepare("INSERT INTO vehicles (partner_id, license_plate, type, total_seats, created_at) VALUES (?,?,?,?, NOW())");
-                $stmt->execute([$pid, $license_plate, $type, $total_seats]);
+                $license_plate = trim($_POST['license_plate'] ?? '');
+                $type = trim($_POST['type'] ?? '');
+                $total_seats = (int)($_POST['total_seats'] ?? 0);
+
+                if (!$license_plate || !$type || $total_seats < 16 || $total_seats > 60) {
+                    throw new Exception('Vui lòng điền đầy đủ: Biển số, loại xe, số ghế (16-60).');
+                }
+
+                $stmt = $db->prepare("INSERT INTO vehicles (partner_id, license_plate, type, total_seats, created_at) VALUES (?, ?, ?, ?, NOW())");
+                $stmt->execute([$partner_id, $license_plate, $type, $total_seats]);
                 $message = 'Thêm xe thành công!';
                 $message_type = 'success';
-                $partner_id = $pid;
                 break;
 
-            // === SỬA XE ===
             case 'edit_vehicle':
-                $vid = (int)($_POST['vehicle_id'] ?? 0);
-                $pid = (int)($_POST['partner_id'] ?? 0);
-                $license_plate = trim($_POST['license_plate']);
-                $type = trim($_POST['type']);
-                $total_seats = (int)$_POST['total_seats'];
-                if (!$vid || !$pid || !$license_plate || !$type || !$total_seats) throw new Exception('Thông tin không hợp lệ.');
-                $stmt = $db->prepare("UPDATE vehicles SET partner_id=?, license_plate=?, type=?, total_seats=? WHERE vehicle_id=?");
-                $stmt->execute([$pid, $license_plate, $type, $total_seats, $vid]);
+                $vehicle_id = (int)($_POST['vehicle_id'] ?? 0);
+                $license_plate = trim($_POST['license_plate'] ?? '');
+                $type = trim($_POST['type'] ?? '');
+                $total_seats = (int)($_POST['total_seats'] ?? 0);
+
+                if ($vehicle_id <= 0 || !$license_plate || !$type || $total_seats < 16 || $total_seats > 60) {
+                    throw new Exception('Thông tin xe không hợp lệ.');
+                }
+
+                $stmt = $db->prepare("UPDATE vehicles SET license_plate = ?, type = ?, total_seats = ? WHERE vehicle_id = ? AND partner_id = ?");
+                $stmt->execute([$license_plate, $type, $total_seats, $vehicle_id, $partner_id]);
                 $message = 'Cập nhật xe thành công!';
                 $message_type = 'success';
-                $partner_id = $pid;
                 break;
 
-            // === XÓA XE ===
-            case 'delete_vehicle':
-                $vid = (int)($_POST['vehicle_id'] ?? 0);
-                if (!$vid) throw new Exception('Không tìm thấy xe.');
-                $stmt = $db->prepare("DELETE FROM vehicles WHERE vehicle_id=?");
-                $stmt->execute([$vid]);
-                $message = 'Xóa xe thành công!';
-                $message_type = 'success';
-                break;
-
-            // === THÊM TÀI XẾ ===
             case 'add_driver':
-                $pid = (int)($_POST['partner_id'] ?? 0);
-                $name = trim($_POST['name']);
-                $phone = trim($_POST['phone']);
-                $license_number = trim($_POST['license_number']);
-                if (!$pid || !$name) throw new Exception('Vui lòng điền tên tài xế và chọn nhà xe.');
-                $stmt = $db->prepare("INSERT INTO drivers (partner_id, name, phone, license_number, created_at) VALUES (?,?,?,?, NOW())");
-                $stmt->execute([$pid, $name, $phone, $license_number]);
+                $name = trim($_POST['name'] ?? '');
+                $phone = trim($_POST['phone'] ?? '');
+                $license_number = trim($_POST['license_number'] ?? '');
+
+                if (!$name) {
+                    throw new Exception('Vui lòng nhập họ tên tài xế.');
+                }
+                if ($phone && !preg_match('/^0[3|5|7|8|9]\d{8}$/', $phone)) {
+                    throw new Exception('Số điện thoại không hợp lệ (10 số, bắt đầu 03,05,07,08,09).');
+                }
+
+                $stmt = $db->prepare("INSERT INTO drivers (partner_id, name, phone, license_number, created_at) VALUES (?, ?, ?, ?, NOW())");
+                $stmt->execute([$partner_id, $name, $phone, $license_number]);
                 $message = 'Thêm tài xế thành công!';
                 $message_type = 'success';
-                $partner_id = $pid;
                 break;
 
-            // === SỬA TÀI XẾ ===
             case 'edit_driver':
-                $did = (int)($_POST['driver_id'] ?? 0);
-                $pid = (int)($_POST['partner_id'] ?? 0);
-                $name = trim($_POST['name']);
-                $phone = trim($_POST['phone']);
-                $license_number = trim($_POST['license_number']);
-                if (!$did || !$pid || !$name) throw new Exception('Thông tin không hợp lệ.');
-                $stmt = $db->prepare("UPDATE drivers SET partner_id=?, name=?, phone=?, license_number=? WHERE driver_id=?");
-                $stmt->execute([$pid, $name, $phone, $license_number, $did]);
-                $message = 'Cập nhật tài xế thành công!';
-                $message_type = 'success';
-                $partner_id = $pid;
-                break;
+                $driver_id = (int)($_POST['driver_id'] ?? 0);
+                $name = trim($_POST['name'] ?? '');
+                $phone = trim($_POST['phone'] ?? '');
+                $license_number = trim($_POST['license_number'] ?? '');
 
-            // === XÓA TÀI XẾ ===
-            case 'delete_driver':
-                $did = (int)($_POST['driver_id'] ?? 0);
-                if (!$did) throw new Exception('Không tìm thấy tài xế.');
-                $stmt = $db->prepare("DELETE FROM drivers WHERE driver_id=?");
-                $stmt->execute([$did]);
-                $message = 'Xóa tài xế thành công!';
+                if ($driver_id <= 0 || !$name) {
+                    throw new Exception('Thông tin tài xế không hợp lệ.');
+                }
+                if ($phone && !preg_match('/^0[3|5|7|8|9]\d{8}$/', $phone)) {
+                    throw new Exception('Số điện thoại không hợp lệ.');
+                }
+
+                $stmt = $db->prepare("UPDATE drivers SET name = ?, phone = ?, license_number = ? WHERE driver_id = ? AND partner_id = ?");
+                $stmt->execute([$name, $phone, $license_number, $driver_id, $partner_id]);
+                $message = 'Cập nhật tài xế thành công!';
                 $message_type = 'success';
                 break;
         }
@@ -106,90 +90,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
-// Load vehicles/drivers for selected partner
+// === XÓA XE / TÀI XẾ ===
+if (isset($_GET['delete_vehicle']) && is_numeric($_GET['delete_vehicle'])) {
+    $vehicle_id = (int)$_GET['delete_vehicle'];
+    try {
+        $stmt = $db->prepare("DELETE FROM vehicles WHERE vehicle_id = ? AND partner_id = ?");
+        $stmt->execute([$vehicle_id, $partner_id]);
+        $message = 'Xóa xe thành công!';
+        $message_type = 'success';
+    } catch (Exception $e) {
+        $message = 'Không thể xóa xe đang có chuyến.';
+        $message_type = 'danger';
+    }
+}
+
+if (isset($_GET['delete_driver']) && is_numeric($_GET['delete_driver'])) {
+    $driver_id = (int)$_GET['delete_driver'];
+    try {
+        $stmt = $db->prepare("DELETE FROM drivers WHERE driver_id = ? AND partner_id = ?");
+        $stmt->execute([$driver_id, $partner_id]);
+        $message = 'Xóa tài xế thành công!';
+        $message_type = 'success';
+    } catch (Exception $e) {
+        $message = 'Không thể xóa tài xế đang có chuyến.';
+        $message_type = 'danger';
+    }
+}
+
+// === LẤY DỮ LIỆU ===
 $vehicles = [];
 $drivers = [];
-if ($partner_id) {
-    try {
-        $v = $db->prepare("SELECT vehicle_id, license_plate, type, total_seats, created_at FROM vehicles WHERE partner_id = ? ORDER BY created_at DESC");
-        $v->execute([$partner_id]);
-        $vehicles = $v->fetchAll(PDO::FETCH_ASSOC);
 
-        $d = $db->prepare("SELECT driver_id, name, phone, license_number, created_at FROM drivers WHERE partner_id = ? ORDER BY created_at DESC");
-        $d->execute([$partner_id]);
-        $drivers = $d->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Exception $e) { /* ignore */ }
+try {
+    $stmt = $db->prepare("SELECT vehicle_id, license_plate, type, total_seats, created_at FROM vehicles WHERE partner_id = ? ORDER BY created_at DESC");
+    $stmt->execute([$partner_id]);
+    $vehicles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmt = $db->prepare("SELECT driver_id, name, phone, license_number, created_at FROM drivers WHERE partner_id = ? ORDER BY created_at DESC");
+    $stmt->execute([$partner_id]);
+    $drivers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    // ignore
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quản lý vận hành</title>
+  <title>Quản lý vận hành - <?= htmlspecialchars($company_name) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary: #20c997; --primary-hover: #1baa80; --secondary: #17a2b8; --success: #10b981;
-      --danger: #ef4444; --warning: #f59e0b; --info: #0dcaf0; --dark: #1f2937; --light: #f8fafc;
-      --gray: #94a3b8; --border: #e2e8f0;
+      --primary: #20c997; --primary-hover: #1baa80; --secondary: #17a2b8;
+      --success: #10b981; --danger: #ef4444; --info: #0dcaf0; --dark: #1f2937;
+      --light: #f8fafc; --gray: #94a3b8; --border: #e2e8f0;
     }
     * { font-family: 'Inter', sans-serif; }
     body { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); min-height: 100vh; }
 
-    .sidebar { position: fixed; top: 0; left: 0; width: 280px; height: 100vh; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; z-index: 1000; box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .sidebar { position: fixed; top: 0; left: 0; width: 280px; height: 100vh; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; z-index: 1000; box-shadow: 4px 0 20px rgba(0,0,0,0.1); transition: all 0.3s ease; }
     .brand { padding: 1.8rem 1.5rem; font-weight: 700; font-size: 1.4rem; border-bottom: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; gap: 12px; }
     .nav-link { color: rgba(255,255,255,0.85); padding: 0.9rem 1.5rem; display: flex; align-items: center; gap: 12px; transition: all 0.25s ease; border-left: 3px solid transparent; }
     .nav-link:hover, .nav-link.active { background: rgba(255,255,255,0.15); color: white; border-left-color: white; transform: translateX(4px); }
     .nav-link i { font-size: 1.1rem; width: 24px; text-align: center; }
-    .main-content { margin-left: 280px; padding: 2rem; }
+
+    .main-content { margin-left: 280px; padding: 2rem; transition: all 0.3s ease; }
     .page-header { background: white; padding: 1.5rem 2rem; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-weight: 700; color: var(--dark); font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
-    .filter-card { background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 1.5rem; margin-bottom: 1.5rem; }
-    .form-select { border-radius: 12px; border: 1.5px solid var(--border); padding: 0.65rem 1rem; font-size: 0.95rem; }
-    .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 0.2rem rgba(32, 201, 151, 0.2); }
+
+    .filter-card { background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 1.5rem; margin-bottom: 1.5rem; text-align: center; }
     .table-card { background: white; border-radius: 16px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); overflow: hidden; transition: all 0.3s ease; }
     .table-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.12); }
     .card-header { background: #f8fafc; border-bottom: 1px solid var(--border); font-weight: 600; color: var(--dark); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
-    .btn-add, .btn-edit, .btn-delete { border: none; border-radius: 10px; padding: 0.4rem 0.8rem; font-size: 0.85rem; transition: all 0.2s; }
-    .btn-add { background: var(--primary); color: white; }
-    .btn-add:hover { background: var(--primary-hover); transform: translateY(-2px); }
-    .btn-edit { background: #fbbf24; color: white; }
-    .btn-edit:hover { background: #f59e0b; }
-    .btn-delete { background: #ef4444; color: white; }
-    .btn-delete:hover { background: #dc2626; }
+    .btn-add { background: var(--primary); border: none; border-radius: 12px; padding: 0.5rem 1rem; font-weight: 600; font-size: 0.9rem; transition: all 0.3s ease; }
+    .btn-add:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 6px 15px rgba(32, 201, 151, 0.3); }
+
     .table thead { background: #f8fafc; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; color: #64748b; }
-    .table tbody tr:hover { background-color: #f1f5f9; }
+    .table tbody tr { transition: all 0.2s; }
+    .table tbody tr:hover { background-color: #f1f5f9; transform: translateY(-1px); }
     .badge { font-weight: 600; padding: 0.4em 0.8em; border-radius: 8px; font-size: 0.8rem; }
+
+    .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.85rem; border-radius: 8px; }
+    .btn-outline-primary { border-color: #94a3b8; color: #64748b; }
+    .btn-outline-primary:hover { background: var(--primary); border-color: var(--primary); color: white; }
+    .btn-outline-danger { border-color: #fca5a5; color: #dc2626; }
+    .btn-outline-danger:hover { background: var(--danger); border-color: var(--danger); color: white; }
+
     .modal-content { border-radius: 16px; border: none; box-shadow: 0 15px 40px rgba(0,0,0,0.2); }
     .modal-header { background: linear-gradient(135deg, #1f2937, #111827); color: white; border-radius: 16px 16px 0 0; }
     .form-control, .form-select { border-radius: 12px; border: 1.5px solid var(--border); padding: 0.65rem 1rem; font-size: 0.95rem; }
     .form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 0.2rem rgba(32, 201, 151, 0.2); }
     .form-label { font-weight: 600; color: #374151; }
+
     .alert { border-radius: 12px; font-weight: 500; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in-up { animation: fadeInUp 0.6s ease-out; }
-    @media (max-width: 992px) { .sidebar { width: 80px; } .sidebar .brand, .nav-link span { display: none; } .nav-link { justify-content: center; } .main-content { margin-left: 80px; } }
+
+    @media (max-width: 992px) {
+      .sidebar { width: 80px; }
+      .sidebar .brand, .nav-link span { display: none; }
+      .nav-link { justify-content: center; }
+      .main-content { margin-left: 80px; }
+    }
   </style>
 </head>
 <body>
   <!-- Sidebar -->
   <div class="sidebar">
     <div class="brand">
-      <i class="fas fa-shield-alt"></i>
-      <span>Admin Panel</span>
+      <i class="fas fa-bus"></i>
+      <span><?= htmlspecialchars($company_name) ?></span>
     </div>
     <nav class="nav flex-column mt-3">
-      <a class="nav-link" href="admin_dashboard.php"><i class="fas fa-gauge-high"></i><span>Tổng quan</span></a>
-      <a class="nav-link" href="admin_users.php"><i class="fas fa-users"></i><span>Quản lý người dùng</span></a>
-      <a class="nav-link" href="admin_partners.php"><i class="fas fa-bus"></i><span>Quản lý nhà xe</span></a>
-      <a class="nav-link" href="admin_promotions.php"><i class="fas fa-tags"></i><span>Khuyến mãi</span></a>
-      <a class="nav-link" href="admin_reports.php"><i class="fas fa-chart-line"></i><span>Báo cáo</span></a>
-      <a class="nav-link active" href="admin_operations.php"><i class="fas fa-cogs"></i><span>Vận hành</span></a>
-      <a class="nav-link" href="admin_feedback.php"><i class="fas fa-headset"></i><span>Hỗ trợ</span></a>
-      <a class="nav-link" href="logout.php"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></a>
+      <a class="nav-link" href="../partner/dashboard.php"><i class="fas fa-tachometer-alt"></i><span>Tổng quan</span></a>
+      <a class="nav-link" href="../partner/trips.php"><i class="fas fa-route"></i><span>Chuyến xe</span></a>
+      <a class="nav-link" href="../partner/tickets.php"><i class="fas fa-ticket-alt"></i><span>Đặt vé</span></a>
+      <a class="nav-link active" href="../partner/operations.php"><i class="fas fa-cogs"></i><span>Vận hành</span></a>
+      <a class="nav-link" href="../partner/reports.php"><i class="fas fa-chart-bar"></i><span>Báo cáo</span></a>
+      <a class="nav-link" href="../partner/feedback.php"><i class="fas fa-star"></i><span>Phản hồi</span></a>
+      <a class="nav-link" href="../partner/notifications.php"><i class="fas fa-bell"></i><span>Thông báo</span></a>
+      <a class="nav-link" href="../partner/settings.php"><i class="fas fa-cog"></i><span>Cài đặt</span></a>
+      <a class="nav-link" href="../auth/logout.php"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></a>
     </nav>
   </div>
 
@@ -197,10 +223,10 @@ if ($partner_id) {
   <div class="main-content">
     <div class="page-header fade-in-up">
       <h1 class="page-title">
-        <i class="fas fa-screwdriver-wrench"></i> Quản lý vận hành
+        <i class="fas fa-cogs"></i> Quản lý vận hành
       </h1>
       <div class="text-muted">
-        <small>Quản lý xe & tài xế theo nhà xe</small>
+        <small>Quản lý xe buýt & tài xế</small>
       </div>
     </div>
 
@@ -212,32 +238,21 @@ if ($partner_id) {
     </div>
     <?php endif; ?>
 
-    <!-- Partner Filter -->
+    <!-- Stats -->
     <div class="filter-card fade-in-up">
-      <form method="GET" class="row g-3 align-items-end">
-        <div class="col-md-6">
-          <label class="form-label">Chọn nhà xe</label>
-          <select class="form-select" name="partner_id" onchange="this.form.submit()">
-            <?php foreach ($partners as $p): ?>
-              <option value="<?= $p['partner_id'] ?>" <?= $partner_id == $p['partner_id'] ? 'selected' : '' ?>>
-                <?= htmlspecialchars($p['name']) ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="col-md-6 text-end">
-          <small class="text-muted">Tổng: <?= count($vehicles) ?> xe | <?= count($drivers) ?> tài xế</small>
-        </div>
-      </form>
+      <small class="text-muted">
+        Tổng: <strong><?= count($vehicles) ?></strong> xe buýt | 
+        <strong><?= count($drivers) ?></strong> tài xế
+      </small>
     </div>
 
     <!-- Vehicles & Drivers -->
     <div class="row g-4">
-      <!-- Vehicles -->
+      <!-- Xe buýt -->
       <div class="col-lg-6 fade-in-up">
         <div class="table-card">
           <div class="card-header">
-            <span><i class="fas fa-bus me-2"></i>Danh sách xe</span>
+            <span><i class="fas fa-bus me-2"></i>Danh sách xe buýt</span>
             <button class="btn btn-add" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
               <i class="fas fa-plus"></i> Thêm xe
             </button>
@@ -250,27 +265,25 @@ if ($partner_id) {
                   <th>Loại xe</th>
                   <th>Số ghế</th>
                   <th>Ngày thêm</th>
-                  <th class="text-center">Hành động</th>
+                  <th class="text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                <?php if (!empty($vehicles)): ?>
+                <?php if ($vehicles): ?>
                   <?php foreach ($vehicles as $v): ?>
                   <tr>
                     <td><strong><?= htmlspecialchars($v['license_plate']) ?></strong></td>
                     <td><span class="badge bg-info"><?= htmlspecialchars($v['type']) ?></span></td>
-                    <td><i class="fas fa-chair me-1"></i><?= (int)$v['total_seats'] ?></td>
+                    <td><i class="fas fa-chair me-1"></i><?= $v['total_seats'] ?></td>
                     <td><small class="text-muted"><?= date('d/m/Y', strtotime($v['created_at'])) ?></small></td>
                     <td class="text-center">
-                      <button class="btn btn-edit btn-sm" data-bs-toggle="modal" data-bs-target="#editVehicleModal" 
-                              onclick="fillEditVehicle(<?= $v['vehicle_id'] ?>, <?= $partner_id ?>, '<?= addslashes($v['license_plate']) ?>', '<?= addslashes($v['type']) ?>', <?= $v['total_seats'] ?>)">
+                      <button class="btn btn-outline-primary btn-sm" onclick="editVehicle(<?= $v['vehicle_id'] ?>)">
                         <i class="fas fa-edit"></i>
                       </button>
-                      <form method="POST" style="display:inline;" onsubmit="return confirm('Xóa xe này?')">
-                        <input type="hidden" name="action" value="delete_vehicle">
-                        <input type="hidden" name="vehicle_id" value="<?= $v['vehicle_id'] ?>">
-                        <button type="submit" class="btn btn-delete btn-sm"><i class="fas fa-trash"></i></button>
-                      </form>
+                      <a href="?delete_vehicle=<?= $v['vehicle_id'] ?>" class="btn btn-outline-danger btn-sm" 
+                         onclick="return confirm('Xóa xe này? Dữ liệu không thể khôi phục.')">
+                        <i class="fas fa-trash"></i>
+                      </a>
                     </td>
                   </tr>
                   <?php endforeach; ?>
@@ -288,7 +301,7 @@ if ($partner_id) {
         </div>
       </div>
 
-      <!-- Drivers -->
+      <!-- Tài xế -->
       <div class="col-lg-6 fade-in-up">
         <div class="table-card">
           <div class="card-header">
@@ -305,11 +318,11 @@ if ($partner_id) {
                   <th>SĐT</th>
                   <th>Bằng lái</th>
                   <th>Ngày thêm</th>
-                  <th class="text-center">Hành động</th>
+                  <th class="text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                <?php if (!empty($drivers)): ?>
+                <?php if ($drivers): ?>
                   <?php foreach ($drivers as $d): ?>
                   <tr>
                     <td><strong><?= htmlspecialchars($d['name']) ?></strong></td>
@@ -325,15 +338,13 @@ if ($partner_id) {
                     <td><code><?= htmlspecialchars($d['license_number'] ?: '—') ?></code></td>
                     <td><small class="text-muted"><?= date('d/m/Y', strtotime($d['created_at'])) ?></small></td>
                     <td class="text-center">
-                      <button class="btn btn-edit btn-sm" data-bs-toggle="modal" data-bs-target="#editDriverModal" 
-                              onclick="fillEditDriver(<?= $d['driver_id'] ?>, <?= $partner_id ?>, '<?= addslashes($d['name']) ?>', '<?= addslashes($d['phone']) ?>', '<?= addslashes($d['license_number']) ?>')">
+                      <button class="btn btn-outline-primary btn-sm" onclick="editDriver(<?= $d['driver_id'] ?>)">
                         <i class="fas fa-edit"></i>
                       </button>
-                      <form method="POST" style="display:inline;" onsubmit="return confirm('Xóa tài xế này?')">
-                        <input type="hidden" name="action" value="delete_driver">
-                        <input type="hidden" name="driver_id" value="<?= $d['driver_id'] ?>">
-                        <button type="submit" class="btn btn-delete btn-sm"><i class="fas fa-trash"></i></button>
-                      </form>
+                      <a href="?delete_driver=<?= $d['driver_id'] ?>" class="btn btn-outline-danger btn-sm" 
+                         onclick="return confirm('Xóa tài xế này? Dữ liệu không thể khôi phục.')">
+                        <i class="fas fa-trash"></i>
+                      </a>
                     </td>
                   </tr>
                   <?php endforeach; ?>
@@ -365,16 +376,6 @@ if ($partner_id) {
           <div class="modal-body">
             <input type="hidden" name="action" value="add_vehicle">
             <div class="mb-3">
-              <label class="form-label">Nhà xe *</label>
-              <select name="partner_id" class="form-select" required>
-                <?php foreach ($partners as $p): ?>
-                  <option value="<?= $p['partner_id'] ?>" <?= $partner_id == $p['partner_id'] ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($p['name']) ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="mb-3">
               <label class="form-label">Biển số xe *</label>
               <input name="license_plate" class="form-control" placeholder="VD: 51H-12345" required>
             </div>
@@ -383,8 +384,8 @@ if ($partner_id) {
               <input name="type" class="form-control" placeholder="VD: Ghế ngồi 29 chỗ" required>
             </div>
             <div class="mb-3">
-              <label class="form-label">Tổng số ghế *</label>
-              <input type="number" min="1" name="total_seats" class="form-control" required>
+              <label class="form-label">Tổng số ghế (16-60) *</label>
+              <input type="number" min="16" max="60" name="total_seats" class="form-control" required>
             </div>
           </div>
           <div class="modal-footer">
@@ -409,24 +410,16 @@ if ($partner_id) {
             <input type="hidden" name="action" value="edit_vehicle">
             <input type="hidden" name="vehicle_id" id="edit_vehicle_id">
             <div class="mb-3">
-              <label class="form-label">Nhà xe *</label>
-              <select name="partner_id" class="form-select" id="edit_vehicle_partner" required>
-                <?php foreach ($partners as $p): ?>
-                  <option value="<?= $p['partner_id'] ?>"><?= htmlspecialchars($p['name']) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="mb-3">
               <label class="form-label">Biển số xe *</label>
-              <input name="license_plate" class="form-control" id="edit_vehicle_plate" required>
+              <input name="license_plate" id="edit_license_plate" class="form-control" required>
             </div>
             <div class="mb-3">
               <label class="form-label">Loại xe *</label>
-              <input name="type" class="form-control" id="edit_vehicle_type" required>
+              <input name="type" id="edit_type" class="form-control" required>
             </div>
             <div class="mb-3">
-              <label class="form-label">Tổng số ghế *</label>
-              <input type="number" min="1" name="total_seats" class="form-control" id="edit_vehicle_seats" required>
+              <label class="form-label">Tổng số ghế (16-60) *</label>
+              <input type="number" min="16" max="60" name="total_seats" id="edit_total_seats" class="form-control" required>
             </div>
           </div>
           <div class="modal-footer">
@@ -449,16 +442,6 @@ if ($partner_id) {
         <form method="POST">
           <div class="modal-body">
             <input type="hidden" name="action" value="add_driver">
-            <div class="mb-3">
-              <label class="form-label">Nhà xe *</label>
-              <select name="partner_id" class="form-select" required>
-                <?php foreach ($partners as $p): ?>
-                  <option value="<?= $p['partner_id'] ?>" <?= $partner_id == $p['partner_id'] ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($p['name']) ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            </div>
             <div class="mb-3">
               <label class="form-label">Họ và tên *</label>
               <input name="name" class="form-control" placeholder="Nguyễn Văn A" required>
@@ -486,7 +469,7 @@ if ($partner_id) {
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Chỉnh sửa tài xế</h5>
+          <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Chỉnh sửa tài xế</h5>
           <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <form method="POST">
@@ -494,24 +477,16 @@ if ($partner_id) {
             <input type="hidden" name="action" value="edit_driver">
             <input type="hidden" name="driver_id" id="edit_driver_id">
             <div class="mb-3">
-              <label class="form-label">Nhà xe *</label>
-              <select name="partner_id" class="form-select" id="edit_driver_partner" required>
-                <?php foreach ($partners as $p): ?>
-                  <option value="<?= $p['partner_id'] ?>"><?= htmlspecialchars($p['name']) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="mb-3">
               <label class="form-label">Họ và tên *</label>
-              <input name="name" class="form-control" id="edit_driver_name" required>
+              <input name="name" id="edit_driver_name" class="form-control" required>
             </div>
             <div class="mb-3">
               <label class="form-label">Số điện thoại</label>
-              <input name="phone" class="form-control" id="edit_driver_phone">
+              <input name="phone" id="edit_driver_phone" class="form-control" placeholder="0901234567">
             </div>
             <div class="mb-3">
               <label class="form-label">Số giấy phép lái xe</label>
-              <input name="license_number" class="form-control" id="edit_driver_license">
+              <input name="license_number" id="edit_driver_license" class="form-control" placeholder="B2-123456789">
             </div>
           </div>
           <div class="modal-footer">
@@ -525,20 +500,27 @@ if ($partner_id) {
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    function fillEditVehicle(id, partner, plate, type, seats) {
-      document.getElementById('edit_vehicle_id').value = id;
-      document.getElementById('edit_vehicle_partner').value = partner;
-      document.getElementById('edit_vehicle_plate').value = plate;
-      document.getElementById('edit_vehicle_type').value = type;
-      document.getElementById('edit_vehicle_seats').value = seats;
+    const vehicles = <?= json_encode($vehicles) ?>;
+    const drivers = <?= json_encode($drivers) ?>;
+
+    function editVehicle(id) {
+      const v = vehicles.find(x => x.vehicle_id == id);
+      if (!v) return alert('Không tìm thấy xe.');
+      document.getElementById('edit_vehicle_id').value = v.vehicle_id;
+      document.getElementById('edit_license_plate').value = v.license_plate;
+      document.getElementById('edit_type').value = v.type;
+      document.getElementById('edit_total_seats').value = v.total_seats;
+      new bootstrap.Modal(document.getElementById('editVehicleModal')).show();
     }
 
-    function fillEditDriver(id, partner, name, phone, license) {
-      document.getElementById('edit_driver_id').value = id;
-      document.getElementById('edit_driver_partner').value = partner;
-      document.getElementById('edit_driver_name').value = name;
-      document.getElementById('edit_driver_phone').value = phone;
-      document.getElementById('edit_driver_license').value = license;
+    function editDriver(id) {
+      const d = drivers.find(x => x.driver_id == id);
+      if (!d) return alert('Không tìm thấy tài xế.');
+      document.getElementById('edit_driver_id').value = d.driver_id;
+      document.getElementById('edit_driver_name').value = d.name;
+      document.getElementById('edit_driver_phone').value = d.phone || '';
+      document.getElementById('edit_driver_license').value = d.license_number || '';
+      new bootstrap.Modal(document.getElementById('editDriverModal')).show();
     }
   </script>
 </body>

@@ -1,6 +1,6 @@
 <?php
-require_once 'config/database.php';
-require_once 'includes/session.php';
+require_once '../config/database.php';
+require_once '../includes/session.php';
 
 checkAdminLogin();
 
@@ -332,14 +332,14 @@ try {
       <span>Admin Panel</span>
     </div>
     <nav class="nav flex-column mt-3">
-      <a class="nav-link" href="admin_dashboard.php"><i class="fas fa-gauge-high"></i><span>Tổng quan</span></a>
-      <a class="nav-link" href="admin_users.php"><i class="fas fa-users"></i><span>Quản lý người dùng</span></a>
-      <a class="nav-link" href="admin_partners.php"><i class="fas fa-bus"></i><span>Quản lý nhà xe</span></a>
-      <a class="nav-link active" href="admin_promotions.php"><i class="fas fa-tags"></i><span>Khuyến mãi</span></a>
-      <a class="nav-link" href="admin_reports.php"><i class="fas fa-chart-line"></i><span>Báo cáo</span></a>
-      <a class="nav-link" href="admin_operations.php"><i class="fas fa-cogs"></i><span>Vận hành</span></a>
-      <a class="nav-link" href="admin_feedback.php"><i class="fas fa-headset"></i><span>Hỗ trợ</span></a>
-      <a class="nav-link" href="logout.php"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></a>
+      <a class="nav-link" href="../admin/admin_dashboard.php"><i class="fas fa-gauge-high"></i><span>Tổng quan</span></a>
+      <a class="nav-link" href="../admin/admin_users.php"><i class="fas fa-users"></i><span>Quản lý người dùng</span></a>
+      <a class="nav-link" href="../admin/admin_partners.php"><i class="fas fa-bus"></i><span>Quản lý nhà xe</span></a>
+      <a class="nav-link active" href="../admin/admin_promotions.php"><i class="fas fa-tags"></i><span>Khuyến mãi</span></a>
+      <a class="nav-link" href="../admin/admin_reports.php"><i class="fas fa-chart-line"></i><span>Báo cáo</span></a>
+      <a class="nav-link" href="../admin/admin_operations.php"><i class="fas fa-cogs"></i><span>Vận hành</span></a>
+      <a class="nav-link" href="../admin/admin_feedback.php"><i class="fas fa-headset"></i><span>Hỗ trợ</span></a>
+      <a class="nav-link" href="../auth/logout.php"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></a>
     </nav>
   </div>
 

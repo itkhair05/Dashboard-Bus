@@ -6,4 +6,4 @@ password: 123
 ## admin
 username: admin@busbooking.com
 
-password: password
+password: 123456

@@ -1,4 +1,4 @@
-## operator
+## partner
 username: phuongtrang@example.com
 
 password: 123

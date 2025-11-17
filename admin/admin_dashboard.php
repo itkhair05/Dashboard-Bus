@@ -465,7 +465,7 @@ try {
                 <i class="fas fa-tachometer-alt"></i>
                 Xin chào, <?= htmlspecialchars($_SESSION['username']) ?>
             </h1>
-            <a href="logout.php" class="btn btn-outline-danger">
+            <a href="../auth/logout.php" class="btn btn-outline-danger">
                 <i class="fas fa-sign-out-alt"></i> Đăng xuất
             </a>
         </div>
